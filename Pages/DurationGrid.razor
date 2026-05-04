@@ -1,0 +1,133 @@
+﻿@page "/durationgrid"
+@using Blazorise
+@using Blazorise.DataGrid
+@using CanineCompetition.Data
+
+
+<h3>Participants</h3>
+
+
+<DataGrid TItem="DurationEntry"
+          Data="@items"
+          @ref="grid"
+          @bind-SelectedRow="@selectedEntry"
+          Editable = "true"
+          Responsive
+          ShowPager
+          CommandMode="DataGridCommandMode.ButtonRow"
+          EditMode="DataGridEditMode.Form"
+          >
+    <DataGridColumns>
+        <DataGridCommandColumn NewCommandAllowed="false" EditCommandAllowed="false" DeleteCommandAllowed="false" CancelCommandAllowed>
+            <SaveCommandTemplate>
+                <Button ElementId="btnSave" Type="ButtonType.Submit" PreventDefaultOnSubmit Color="Color.Primary" Clicked="@context.Clicked">@context.LocalizationString></Button>
+            </SaveCommandTemplate>
+            <CancelCommandTemplate>
+                <Button ElementId="btnCancel" Color="Color.Secondary" Clicked="@context.Clicked">@context.LocalizationString</Button>
+            </CancelCommandTemplate>
+        </DataGridCommandColumn>
+        <DataGridColumn Field="@nameof(DurationEntry.Name)" Caption="Name" Editable />
+
+        <DataGridColumn TItem="DurationEntry" Field = "@nameof(DurationEntry.Duration)" Caption="Duration" Editable>
+            <DisplayTemplate>
+                @FormatTimeSpan(context.Item.Duration)
+        </DisplayTemplate>
+<EditTemplate>
+          
+    <TextInput Pattern="^(?:[0-5]?\d:[0-5]?\d)(?::\d{3})?$" Immediate="false" Value="@FormatTimeSpan(context.CellValue)" ValueChanged="@(value => UpdateTimeSpan(value, context))" ValueExpression="() => dummyString"/>
+
+</EditTemplate>
+  
+</DataGridColumn>
+
+
+    </DataGridColumns>
+    <ButtonRowTemplate>
+        <Button Color="Color.Success" Clicked="context.NewCommand.Clicked">New</Button>
+        <Button Color="Color.Primary" Disabled="( selectedEntry is null )" Clicked="context.EditCommand.Clicked">Edit</Button>
+        <Button Color="Color.Danger" Disabled="( selectedEntry is null )" Clicked="context.DeleteCommand.Clicked">Delete</Button>
+        <Button Color="Color.Link" Clicked="context.ClearFilterCommand.Clicked">Clear Filter</Button>
+    </ButtonRowTemplate>
+</DataGrid>
+
+@code {
+    private List<DurationEntry> items = new()
+
+    {
+        new DurationEntry { Name = "Kingsley", Duration = new TimeSpan(0, 0, 04, 22, 500) }
+    };
+    private DataGrid<DurationEntry> grid;
+    private string changedDurationString = "";
+    protected override async Task OnInitializedAsync()
+    {
+
+    }
+    private DurationEntry selectedEntry;
+
+
+    private string dummyString { get; set; }
+
+    private void UpdateTimeSpan(string newValue, CellEditContext context)
+    {
+        if (string.IsNullOrWhiteSpace(newValue))
+            return;
+
+        // Normalize input
+       string normalized = NormalizeToFullFormat(newValue);
+
+        if (TimeSpan.TryParseExact(normalized, @"mm\:ss\:fff", null, out var ts))
+        {
+            context.CellValue = ts;
+        }
+    }
+
+    private string NormalizeToFullFormat(string input)
+    {
+        // Split by colon
+        var parts = input.Split(':');
+
+        if (parts.Length == 2)
+        {
+            // mm:ss → mm:ss:000
+            return $"{Pad(parts[0], 2)}:{Pad(parts[1], 2)}:000";
+        }
+
+        if (parts.Length == 3)
+        {
+            // mm:ss:fff → pad each part
+            return $"{Pad(parts[0], 2)}:{Pad(parts[1], 2)}:{Pad(parts[2], 3)}";
+        }
+
+        // Invalid → return unchanged
+        return input;
+    }
+
+    private string Pad(string value, int length)
+    {
+        return value.PadLeft(length, '0');
+    }
+
+
+    private bool TryParseFlexibleTime(string input, out TimeSpan result)
+    {
+        if (TimeSpan.TryParseExact(input, @"m\:ss\:fff", null, out result))
+            return true;
+
+        if (TimeSpan.TryParseExact(input, @"m\:ss", null, out result))
+            return true;
+
+        return false;
+    }
+
+    private string FormatTimeSpan(object value)
+    {
+        if (value is TimeSpan ts)
+            return ts.ToString(@"mm\:ss\:fff");
+
+        return string.Empty;
+    }
+
+  
+
+
+}

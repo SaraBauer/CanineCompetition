@@ -1,0 +1,54 @@
+﻿<div class="d-flex gap-2 align-items-center">
+
+    <InputNumber TValue="int"
+                 Min="0"
+                 Max="59"
+                 @bind-Value="Minutes"
+                 Style="width:60px" />
+
+    <span>:</span>
+
+    <InputNumber TValue="int"
+                 Min="0"
+                 Max="59"
+                 @bind-Value="Seconds"
+                 Style="width:60px" />
+
+    <span>:</span>
+
+    <InputNumber TValue="int"
+                 Min="0"
+                 Max="999"
+                 @bind-Value="Milliseconds"
+                 Style="width:80px" />
+</div>
+
+@code {
+    [Parameter] public TimeSpan Value { get; set; }
+    [Parameter] public EventCallback<TimeSpan> ValueChanged { get; set; }
+
+    private int Minutes
+    {
+        get => Value.Minutes;
+        set => UpdateParent(value, Seconds, Milliseconds);
+    }
+
+    private int Seconds
+    {
+        get => Value.Seconds;
+        set => UpdateParent(Minutes, value, Milliseconds);
+    }
+
+    private int Milliseconds
+    {
+        get => Value.Milliseconds;
+        set => UpdateParent(Minutes, Seconds, value);
+    }
+
+    private void UpdateParent(int minutes, int seconds, int milliseconds)
+    {
+        var ts = new TimeSpan(0, 0, minutes, seconds, milliseconds);
+        ValueChanged.InvokeAsync(ts);
+    }
+}
+
