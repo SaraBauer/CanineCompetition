@@ -67,4 +67,11 @@ main {
         padding-left: 2rem !important;
         padding-right: 1.5rem !important;
     }
-}
+
+    .confirm-modal .modal-dialog {
+        max-width: 350px !important;
+    }
+    .my-delete-modal .modal-dialog {
+        max-width: 400px !important;
+    }
+    }

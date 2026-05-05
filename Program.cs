@@ -1,10 +1,12 @@
 using Blazorise;
 using Blazorise.Bootstrap5;
-using Blazorise.Icons.FontAwesome;
 using Blazorise.DataGrid;
+using Blazorise.Icons.FontAwesome;
+using CanineCompetition;
 using CanineCompetition.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,8 @@ builder.Services
     })
     .AddBootstrap5Providers()
     .AddFontAwesomeIcons();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
