@@ -11,6 +11,10 @@
     .my-delete-modal .modal-dialog {
         max-width: 400px !important;
     }
+        .container {
+      display: flex;
+      
+    }
 </script>
 
 <h3>Selected entry: </h3>
@@ -32,13 +36,27 @@
         <Button Color="Color.Secondary" Outline="true" Clicked="CancelDelete">
             Cancel
         </Button>
-
         <Button Color="Color.Danger" Clicked="ConfirmDelete">
             Delete
         </Button>
     </ModalFooter>
 </Modal>
+<div style="display:@showNewEntryField">
+    <div style="display:flex;flex-wrap: wrap; padding:5px">
+        <div class="item" style="max-width:250px; padding-right:10px">
+            <Input Placeholder="Enter name" @bind-Value="@newEntry.Name"/>
+        </div>
+        <div class="item" style="padding-right:10px">
+            <DurationPicker Value="@newEntry.Duration" ValueChanged="@UpdateTimeSpanNewEntry" />
 
+        </div>
+        <div class="item" >
+            <Button Color="Color.Primary" Clicked="@SaveNewEntry">Save</Button>
+      
+            <Button Color="Color.Secondary" Clicked="@SaveNewEntry">Cancel</Button>
+        </div>
+    </div>
+</div>
 
 <DataGrid TItem="DurationEntry"
           Data="@items"
@@ -48,13 +66,16 @@
           Responsive
           ShowPager
           CommandMode="DataGridCommandMode.ButtonRow"
-          EditMode="DataGridEditMode.Inline"
-          >
-
+          EditMode="DataGridEditMode.Inline">
     <DataGridColumns>
-        <DataGridCommandColumn NewCommandAllowed="false" EditCommandAllowed="false" DeleteCommandAllowed="false" CancelCommandAllowed>
+        <DataGridCommandColumn NewCommandAllowed="true" EditCommandAllowed="true" DeleteCommandAllowed="false" CancelCommandAllowed>
+            <NewCommandTemplate>
+                <Button Color="Color.Success" Clicked="@NewEntry">
+                    New
+                </Button>
+            </NewCommandTemplate>
             <SaveCommandTemplate>
-                <Button ElementId="btnSave" Type="ButtonType.Submit" PreventDefaultOnSubmit Color="Color.Primary" Clicked="@SaveSelected">@context.LocalizationString></Button>
+                <Button ElementId="btnSave" Type="ButtonType.Submit" PreventDefaultOnSubmit Color="Color.Primary" Clicked="@SaveSelected">@context.LocalizationString</Button>
             </SaveCommandTemplate>
             <CancelCommandTemplate>
                 <Button ElementId="btnCancel" Color="Color.Secondary" Clicked="@context.Clicked">@context.LocalizationString</Button>
@@ -79,16 +100,15 @@
                 }
                 <DurationPicker Value="@currentDuration" ValueChanged="@UpdateTimeSpan" />
 </EditTemplate>
-  
+
 </DataGridColumn>
 
 
     </DataGridColumns>
+
     <ButtonRowTemplate>
-        <Button Color="Color.Success" Clicked="context.NewCommand.Clicked">New</Button>
         <Button Color="Color.Primary" Disabled="( selectedEntry is null )" Clicked="context.EditCommand.Clicked">Edit</Button>
         <Button Color="Color.Danger" Disabled="(selectedEntry is null)" Clicked="() => AskDelete()">Delete</Button>
-@*         <Button Color="Color.Link" Clicked="context.ClearFilterCommand.Clicked">Clear Filter</Button> *@
     </ButtonRowTemplate>
 </DataGrid>
 
@@ -96,11 +116,15 @@
     private List<DurationEntry> items = new(){};
     private DataGrid<DurationEntry> grid;
     private string changedDurationString = "";
+    private DurationEntry selectedEntry;
+    private string showNewEntryField = "none";
+
+    public DurationEntry newEntry = new DurationEntry();
     protected override async Task OnInitializedAsync()
     {
         items = await Db.GetAlltriesAsync();
     }
-    private DurationEntry selectedEntry;
+
 
 
     private void UpdateName(string newName)
@@ -108,16 +132,30 @@
         if (selectedEntry != null)
         {
             selectedEntry.Name = newName;
-        }
+        } 
     }
 
     public async Task UpdateTimeSpan(TimeSpan newValue)
     {
-        if(selectedEntry != null)
+        if (selectedEntry != null)
         {
             selectedEntry.Duration = newValue;
-        }
+        } 
 
+    }
+
+    public void NewEntry()
+    {
+        newEntry = new DurationEntry();
+        showNewEntryField = "";
+    }
+
+    public async Task UpdateTimeSpanNewEntry(TimeSpan newValue)
+    {
+        if (newEntry != null)
+        {
+            newEntry.Duration = newValue;
+        }
     }
 
     private string FormatTimeSpan(object value)
@@ -131,39 +169,48 @@
     {
         if (selectedEntry is null)
             return;
-        // await grid.Save();
 
         if (selectedEntry.Id == 0)
             Db.DurationEntries.Add(selectedEntry);
         else
             Db.DurationEntries.Update(selectedEntry);
-
         await Db.SaveChangesAsync();
 
         await grid.Cancel();
         await grid.Reload();
     }
 
-    // private async Task DeleteSelected()
-    // {
-    //     if (selectedEntry is null)
-    //         return;
+    private async Task SaveNewEntry()
+    {
+        if (newEntry is null)
+            return;
 
-    //     Db.DurationEntries.Remove(selectedEntry);
-    //     items.Remove(selectedEntry);
+        if (newEntry.Id == 0)
+            Db.DurationEntries.Add(newEntry);
+        else
+            Db.DurationEntries.Update(newEntry);
+        await Db.SaveChangesAsync();
 
-    //     await Db.SaveChangesAsync();
+        await grid.Cancel();
+        await grid.Reload();
+        showNewEntryField = "none";
+        
+        items = await Db.GetAlltriesAsync();
+    }
 
-    //     selectedEntry = null;
-    //     await grid.Reload();
-    // }
+
+    private async Task CancelNewEntry()
+    {
+        newEntry = new DurationEntry();
+
+   
+    }
 
     private Modal deleteModal;
 
 
     private async Task AskDelete()
     {
-       
         await deleteModal.Show();
     }
 
@@ -191,69 +238,4 @@
         selectedEntry = null;
         await deleteModal.Hide();
     }
-
-    // private string NormalizeToFullFormat(string input)
-    // {
-    //     // Split by colon
-    //     var parts = input.Split(':');
-
-    //     if (parts.Length == 2)
-    //     {
-    //         // mm:ss → mm:ss:000
-    //         return $"{Pad(parts[0], 2)}:{Pad(parts[1], 2)}:000";
-    //     }
-
-    //     if (parts.Length == 3)
-    //     {
-    //         // mm:ss:fff → pad each part
-    //         return $"{Pad(parts[0], 2)}:{Pad(parts[1], 2)}:{Pad(parts[2], 3)}";
-    //     }
-
-    //     // Invalid → return unchanged
-    //     return input;
-    // }
-
-    // private void UpdateTimeSpan(string newValue, CellEditContext context)
-    // {
-    //     if (string.IsNullOrWhiteSpace(newValue))
-    //         return;
-
-    //     // Normalize input
-    //     string normalized = NormalizeToFullFormat(newValue);
-
-    //     if (TimeSpan.TryParseExact(normalized, @"mm\:ss\:fff", null, out var ts))
-    //     {
-    //         context.CellValue = ts;
-
-
-    //     }
-    // }
-
-    // private string Pad(string value, int length)
-    // {
-    //     return value.PadLeft(length, '0');
-    // }
-
-
-
-    // private async Task OnSelectedRowChanged(DurationEntry item)
-    // {
-    //     selectedEntry = item;
-    // }
-
-  
-
-    // private bool TryParseFlexibleTime(string input, out TimeSpan result)
-    // {
-    //     if (TimeSpan.TryParseExact(input, @"m\:ss\:fff", null, out result))
-    //         return true;
-
-    //     if (TimeSpan.TryParseExact(input, @"m\:ss", null, out result))
-    //         return true;
-
-    //     return false;
-    // }
-
-
-
 }

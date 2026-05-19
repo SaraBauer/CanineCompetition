@@ -2,8 +2,12 @@
 {
     public class DurationEntry
     {
+        public DurationEntry()
+        {
+        }
+
         public int Id { get; set; }
-        public string Name { get; set; }
-        public TimeSpan Duration { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public TimeSpan Duration { get; set; } = default;
     }
 }

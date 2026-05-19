@@ -1,9 +1,286 @@
 ﻿@page "/"
+@using Blazorise
+@using CanineCompetition.Data
+@using Recurop
+@inject RecurringOperationsManager Recurop
+@implements IDisposable
+@inject AppDbContext Db
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>name: @newEntry.Name  duration: @newEntry.Duration</h1>
 
-Welcome to your new app.
+<Modal @ref="modalRef" Closing="@OnModalClosing"  Centered>
+    <ModalContent>
+        <ModalHeader>
+            <ModalTitle>Saving</ModalTitle>
+        </ModalHeader>
+        <ModalBody>
+           <div><span style="font-weight:bold">Name:</span> @newEntry.Name</div>
+           <div><span style="font-weight:bold">Time:</span> @newEntry.Duration</div>
+        </ModalBody>
+        <ModalFooter>
+            <Button  Color="Color.Secondary" Clicked="@SaveNewEntry">Save</Button>
+            <Button Color="Color.Primary" Clicked="@CloseModal">Cancel</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+<Modal @ref="modalRefSuccess" Centered" Closing="@OnModalClosing">
+    <ModalContent >
+        <ModalHeader>
+            <ModalTitle TextColor="TextColor.Success">Saving Successful</ModalTitle>
+        </ModalHeader>
+        <ModalFooter>
+            <Button Color="Color.Light" Clicked="@CloseSuccessModal">Close</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<Modal @ref="modalRefFailure" Centered Closing="@OnModalClosing">
+    <ModalContent Background="Background.Success">
+        <ModalHeader>
+            <ModalTitle TextColor="TextColor.Danger">Error while saving</ModalTitle>
+        </ModalHeader>
+        <ModalFooter>
+            <Button Color="Color.Light" Clicked="@CloseFailureModal">Close</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<div class='some-page-wrapper'>
+    <div class='row' style="justify-content:center">
+          <Blazorise.TextInput Placeholder="Enter name" @bind-Value="@newEntry.Name" style="width:50%" />
+    </div>
+
+    <div class='row'>
+        <div>
+                <div style="visibility: @(_timerVisible ? "visible" : "hidden"); font-size: 75px;">@FormatTimeSpan(@_displayTime) </div>  
+            @{
+                var showStartVisibility = _timerOperation.CanBeStarted ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
+                var showResumeOperation = _timerOperation.IsPaused ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
+                var showStopVisibility = _timerOperation.IsRecurring ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
+                var showResetVisiblility = _timerOperation.IsRecurring ? Blazorise.Visibility.Invisible : Blazorise.Visibility.Visible; ;
+            }
+ 
+            <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px; position:fixed; right:10% " Visibility=@showStartVisibility @onclick="StartTimer">Start</Blazorise.Button>
+            <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility="@showResumeOperation" @onclick="ResumeTimer">Start</Blazorise.Button>
+            <Blazorise.Button Color="Color.Secondary"accesskey" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility=@showStopVisibility @onclick="StopTimer">Stop</Blazorise.Button>
+
+            <div class="column">
+            <Blazorise.Button Color="Color.Secondary" Style="border-radius:50%; width: 100px; height:100px; " Visibility=@showResetVisiblility @onclick="ResetTimer">Reset</Blazorise.Button>
+            </div>
+        </div>
+    </div>
+
+</div>
+<div  style="margin-top:10%">
+    @{
+        var disableButton = (newEntry.Name == string.Empty || newEntry.Duration == TimeSpan.Zero);
+    }
+    <Blazorise.Button Disabled=@disableButton  Color="Color.Primary"  Block Clicked="ShowModal">Save</Blazorise.Button>
+
+</div>
+
+
+
+
+@code {
+    // reference to the modal component
+
+
+    private Modal modalRef;
+    private Modal modalRefSuccess;
+    private Modal modalRefFailure;
+
+    private bool cancelClose;
+
+    private Task ShowModal()
+    {
+        return modalRef.Show();
+    }
+
+    private Task CloseModal()
+    {
+        cancelClose = false;
+       return  modalRef.Hide();
+    }
+
+    private Task OnModalClosing(ModalClosingEventArgs e)
+    {
+        e.Cancel = cancelClose
+            || e.CloseReason != CloseReason.UserClosing;
+
+        return Task.CompletedTask;
+    }
+
+    private Task ShowSuccessModal()
+    {
+        return modalRefSuccess.Show();
+    }
+
+    private Task CloseSuccessModal()
+    {
+        cancelClose = false;
+        return modalRefSuccess.Hide();
+    }
+
+    private Task ShowFailureModal()
+    {
+        return modalRefFailure.Show();
+    }
+
+    private Task CloseFailureModal()
+    {
+        cancelClose = false;
+        return modalRefFailure.Hide();
+    }
+
+
+    RecurringOperation _timerOperation;
+    RecurringOperation _blinkerOperation;
+    TimeSpan _displayTime = default;
+    List<TimeSpan> _laptimes;
+    int _elapsedSeconds;
+    int _elapsedMiliseconds;
+    bool _timerVisible = true;
+
+    public DurationEntry newEntry = new DurationEntry();
+    protected override void OnInitialized()
+    {
+        _timerOperation = new("timer");
+        _timerOperation.Operation = IncrementTimer;
+        _timerOperation.StatusChanged += TimerOperationStatusChanged;
+        _timerOperation.OperationFaulted += LogError;
+
+        _blinkerOperation = new("blinker");
+        _blinkerOperation.Operation = BlinkTimer;
+        _blinkerOperation.StatusChanged += BlinkerOperationStatusChanged;
+
+        _laptimes = new();
+    }
+
+    private string FormatTimeSpan(object value)
+    {
+        if (value is TimeSpan ts)
+            return ts.ToString(@"mm\:ss\:fff");
+
+        return string.Empty;
+    }
+
+    void StartTimer()
+    {
+        Recurop.StartRecurring(_timerOperation, TimeSpan.FromMilliseconds(50));
+    }
+
+    void StopTimer()
+    {
+        newEntry.Duration = _displayTime;
+        Recurop.PauseRecurring(_timerOperation);
+    }
+
+    void ResumeTimer()
+    {
+        Recurop.ResumeRecurring(_timerOperation);
+    }
+
+    void ResetTimer()
+    {
+        _displayTime = default;
+
+
+        newEntry.Duration = _displayTime;
+        Recurop.CancelRecurring(_timerOperation);
+    }
+
+    void IncrementTimer()
+    {
+        _elapsedMiliseconds = _elapsedMiliseconds+50;
+        _displayTime = TimeSpan.FromMilliseconds(_elapsedMiliseconds);;
+        InvokeAsync(() => this.StateHasChanged());
+    }
+
+    void BlinkTimer()
+    {
+        _timerVisible = !_timerVisible;
+        InvokeAsync(() => this.StateHasChanged());
+    }
+
+
+    void BlinkerOperationStatusChanged()
+    {
+        switch (_blinkerOperation.Status)
+        {
+            case RecurringOperationStatus.Idle:
+                break;
+            case RecurringOperationStatus.Paused:
+                break;
+            case RecurringOperationStatus.Executing:
+                break;
+            case RecurringOperationStatus.Cancelled:
+                _timerVisible = true;
+                break;
+            default:
+                break;
+        }
+    }
+
+    void TimerOperationStatusChanged()
+    {
+        switch (_timerOperation.Status)
+        {
+            case RecurringOperationStatus.Idle:
+                break;
+            case RecurringOperationStatus.Paused:
+                break;
+            case RecurringOperationStatus.Executing:
+                break;
+            case RecurringOperationStatus.Cancelled:
+                _displayTime = TimeSpan.Zero;
+                _elapsedSeconds = 0;
+                _laptimes.Clear();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void LogError(Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+    }
+
+    public void Dispose()
+    {
+        Recurop.CancelRecurring(_timerOperation);
+        Recurop.CancelRecurring(_blinkerOperation);
+    }
+
+
+    private async Task SaveNewEntry()
+    {
+        if (newEntry is null)
+            return;
+
+        if (newEntry.Id == 0){
+            Db.DurationEntries.Add(newEntry);
+        }
+        else
+        {
+            Db.DurationEntries.Update(newEntry);
+        }
+
+        int success= await Db.SaveChangesAsync();
+       await  modalRef.Hide();
+
+        if(success > 0)
+        {
+            await modalRefSuccess.Show();
+
+        }
+        else
+        {
+            await modalRefFailure.Show();
+        }
+    }
+}
