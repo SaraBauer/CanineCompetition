@@ -1,4 +1,27 @@
-@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+﻿@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+
+/*body {
+    background: linear-gradient(180deg, #1a1a1a, #141414)!important;
+    color: #f2f2f2;
+    font-family: "Inter", sans-serif;
+    margin: 0;
+    padding: 0;
+}*/
+
+
+/* Optional: smooth text rendering */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* MAIN CONTENT AREA */
+.main-content {
+    padding: 20px;
+}
+
+
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -89,4 +112,135 @@ a, .btn-link {
 
 .b-column {
     height: 100px;
+}
+
+.sidebar[b-nz2sg73969] {
+    background-image: linear-gradient(180deg, #000000 0%, #0b3b24 70%) !important;
+}
+/* Stopwatch Card */
+.sw-card {
+    width: 80%;
+    padding: 20px;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    text-align: center;
+    margin: 20px auto;
+    transition: transform .2s ease;
+}
+
+    .sw-card:hover {
+        transform: translateY(-3px);
+    }
+
+/* Time Display */
+.sw-time {
+    font-size: 2.4rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+    color: #333;
+    font-family: "Roboto Mono", monospace;
+}
+
+/* Button Row */
+.sw-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Base Button */
+.sw-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #000;
+    transition: transform .1s ease, opacity .2s ease;
+}
+
+    .sw-btn:active {
+        transform: scale(0.96);
+    }
+
+    .sw-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+/* Colors */
+.sw-start {
+    background: #4cd964;
+}
+
+.sw-stop {
+    background: #ffd166;
+}
+
+.sw-reset {
+    background: #ff5c5c;
+}
+
+.sw-save {
+    background: var(--accent2);
+}
+
+.sw-start {
+    background: #4cd964;
+}
+
+.sw-stop {
+    background: #ffd166;
+}
+
+.sw-reset {
+    background: #ff5c5c;
+}
+
+.sw-save {
+    background: var(--accent2);
+}
+
+.card-dog {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    margin: 20px auto;
+    width: fit-content;
+    position: relative;
+}
+    .card-dog::after {
+        content: "🐾";
+        position: absolute;
+        bottom: 10px;
+        right: 12px;
+        opacity: 0.25;
+        font-size: 1.2rem;
+    }
+/* Global Dark Theme */
+body {
+    background: #111;
+    color: #f2f2f2;
+    font-family: "Inter", sans-serif;
+    margin: 0;
+}
+
+
+
+
+/* Title */
+.nav-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #e8a96b; /* warm dog-fur accent */
+}
+
+/* Main Content */
+.main-content {
+    padding: 20px;
 }

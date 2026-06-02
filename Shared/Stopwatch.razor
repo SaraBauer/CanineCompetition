@@ -1,0 +1,79 @@
+﻿<div class="card-dog">
+    <div class="sw-time">
+        @Elapsed.ToString(@"hh\:mm\:ss\.fff")
+    </div>
+
+    @if (ShowControls)
+    {
+        <div class="sw-buttons">
+            <button class="sw-btn sw-start" @onclick="Start">Start</button>
+            <button class="sw-btn sw-stop" @onclick="Stop">Stop</button>
+            <button class="sw-btn sw-reset" @onclick="Reset">Reset</button>
+        </div>
+    }
+</div>
+
+
+@code {
+    private bool _running;
+    private PeriodicTimer? _timer;
+    private DateTime _start;
+    private TimeSpan _offset;
+
+    public bool IsRunning => _running;
+    [Parameter] public bool AutoStart { get; set; }
+    [Parameter] public bool ShowControls { get; set; } = true;
+
+    [Parameter] public TimeSpan Elapsed { get; set; }
+    [Parameter] public EventCallback<TimeSpan> ElapsedChanged { get; set; }
+
+    [Parameter] public EventCallback OnStart { get; set; }
+    [Parameter] public EventCallback OnStop { get; set; }
+    [Parameter] public EventCallback OnReset { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
+
+        _ = RunTimerLoop();
+
+        if (AutoStart)
+            Start();
+    }
+
+    private async Task RunTimerLoop()
+    {
+        while (await _timer!.WaitForNextTickAsync())
+        {
+            if (_running)
+            {
+                Elapsed = _offset + (DateTime.Now - _start);
+                await ElapsedChanged.InvokeAsync(Elapsed);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Start()
+    {
+        _start = DateTime.Now - _offset;
+        _running = true;
+        OnStart.InvokeAsync();
+    }
+
+    public void Stop()
+    {
+        _running = false;
+        _offset = Elapsed;
+        OnStop.InvokeAsync();
+    }
+
+    public void Reset()
+    {
+        _running = false;
+        _offset = TimeSpan.Zero;
+        Elapsed = TimeSpan.Zero;
+        ElapsedChanged.InvokeAsync(TimeSpan.Zero);
+        OnReset.InvokeAsync();
+    }
+}

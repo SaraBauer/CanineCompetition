@@ -3,12 +3,13 @@
 @using CanineCompetition.Data
 @using Recurop
 @inject RecurringOperationsManager Recurop
+@inject NavigationManager NavigationManager
 @implements IDisposable
 @inject AppDbContext Db
 
 <PageTitle>Index</PageTitle>
 
-<h1>name: @newEntry.Name  duration: @newEntry.Duration</h1>
+<h1>Stopwatch</h1>
 
 <Modal @ref="modalRef" Closing="@OnModalClosing"  Centered>
     <ModalContent>
@@ -55,16 +56,19 @@
 
     <div class='row'>
         <div>
+        
                 <div style="visibility: @(_timerVisible ? "visible" : "hidden"); font-size: 75px;">@FormatTimeSpan(@_displayTime) </div>  
             @{
                 var showStartVisibility = _timerOperation.CanBeStarted ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
                 var showResumeOperation = _timerOperation.IsPaused ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
                 var showStopVisibility = _timerOperation.IsRecurring ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
-                var showResetVisiblility = _timerOperation.IsRecurring ? Blazorise.Visibility.Invisible : Blazorise.Visibility.Visible; ;
+                var showResetVisiblility = _timerOperation.IsRecurring ? Blazorise.Visibility.Invisible : Blazorise.Visibility.Visible; 
+
+
             }
  
             <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px; position:fixed; right:10% " Visibility=@showStartVisibility @onclick="StartTimer">Start</Blazorise.Button>
-            <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility="@showResumeOperation" @onclick="ResumeTimer">Start</Blazorise.Button>
+            <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility="@showResumeOperation" @onclick="ResumeTimer">Resume</Blazorise.Button>
             <Blazorise.Button Color="Color.Secondary"accesskey" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility=@showStopVisibility @onclick="StopTimer">Stop</Blazorise.Button>
 
             <div class="column">
@@ -103,7 +107,7 @@
     private Task CloseModal()
     {
         cancelClose = false;
-       return  modalRef.Hide();
+        return  modalRef.Hide();
     }
 
     private Task OnModalClosing(ModalClosingEventArgs e)
@@ -157,7 +161,7 @@
         _blinkerOperation.Operation = BlinkTimer;
         _blinkerOperation.StatusChanged += BlinkerOperationStatusChanged;
 
-        _laptimes = new();
+
     }
 
     private string FormatTimeSpan(object value)
@@ -186,11 +190,12 @@
 
     void ResetTimer()
     {
-        _displayTime = default;
+        _displayTime = TimeSpan.Zero;
 
 
         newEntry.Duration = _displayTime;
         Recurop.CancelRecurring(_timerOperation);
+        NavigationManager.NavigateTo("/",true);
     }
 
     void IncrementTimer()
@@ -198,6 +203,7 @@
         _elapsedMiliseconds = _elapsedMiliseconds+50;
         _displayTime = TimeSpan.FromMilliseconds(_elapsedMiliseconds);;
         InvokeAsync(() => this.StateHasChanged());
+
     }
 
     void BlinkTimer()
@@ -237,8 +243,8 @@
                 break;
             case RecurringOperationStatus.Cancelled:
                 _displayTime = TimeSpan.Zero;
-                _elapsedSeconds = 0;
-                _laptimes.Clear();
+          
+
                 break;
             default:
                 break;
