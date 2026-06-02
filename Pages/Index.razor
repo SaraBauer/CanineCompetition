@@ -1,167 +1,189 @@
 ﻿@page "/"
 @using Blazorise
+@using Blazorise.DataGrid
 @using CanineCompetition.Data
-@using Recurop
-@inject RecurringOperationsManager Recurop
-@inject NavigationManager NavigationManager
-@implements IDisposable
 @inject AppDbContext Db
 
-<PageTitle>Index</PageTitle>
+<script>
+   .confirm-modal .modal-dialog {
+        max-width: 350px !important;
+   }
+    .my-delete-modal .modal-dialog {
+        max-width: 400px !important;
+    }
+        .container {
+      display: flex;
+      
+    }
+</script>
 
-<h1>Stopwatch</h1>
+<h3>Selected entry: </h3>
+@if(selectedEntry != null)
+{
+    <h2>@selectedEntry.Name, @selectedEntry.Duration</h2>
+}
 
-<Modal @ref="modalRef" Closing="@OnModalClosing"  Centered>
-    <ModalContent>
-        <ModalHeader>
-            <ModalTitle>Saving</ModalTitle>
-        </ModalHeader>
-        <ModalBody>
-           <div><span style="font-weight:bold">Name:</span> @newEntry.Name</div>
-           <div><span style="font-weight:bold">Time:</span> @newEntry.Duration</div>
-        </ModalBody>
-        <ModalFooter>
-            <Button  Color="Color.Secondary" Clicked="@SaveNewEntry">Save</Button>
-            <Button Color="Color.Primary" Clicked="@CloseModal">Cancel</Button>
-        </ModalFooter>
-    </ModalContent>
+<Modal @ref="deleteModal" Centered Background="Background.Dark" Style="max-width:250px!important; max-height: 250px!important" TextColor="TextColor.White">
+    <ModalHeader>
+        <h5 class="modal-title">Delete Entry</h5>
+    </ModalHeader>
+
+    <ModalBody>
+        <p>Are you sure you want to delete <strong>@selectedEntry?.Name</strong>?</p>
+    </ModalBody>
+
+    <ModalFooter>
+        <Button Color="Color.Secondary" Outline="true" Clicked="CancelDelete">
+            Cancel
+        </Button>
+        <Button Color="Color.Danger" Clicked="ConfirmDelete">
+            Delete
+        </Button>
+    </ModalFooter>
 </Modal>
+<div style="display:@showNewEntryField">
+    <div style="display:flex;flex-wrap: wrap; padding:5px">
+        <div class="item" style="max-width:250px; padding-right:10px">
+            <Input Placeholder="Enter name" @bind-Value="@newEntry.Name"/>
+        </div>
+        <div class="item" style="padding-right:10px">
+            <DurationPicker Value="@newEntry.Duration" ValueChanged="@UpdateTimeSpanNewEntry" />
 
-<Modal @ref="modalRefSuccess" Centered" Closing="@OnModalClosing">
-    <ModalContent >
-        <ModalHeader>
-            <ModalTitle TextColor="TextColor.Success">Saving Successful</ModalTitle>
-        </ModalHeader>
-        <ModalFooter>
-            <Button Color="Color.Light" Clicked="@CloseSuccessModal">Close</Button>
-        </ModalFooter>
-    </ModalContent>
-</Modal>
-
-<Modal @ref="modalRefFailure" Centered Closing="@OnModalClosing">
-    <ModalContent Background="Background.Success">
-        <ModalHeader>
-            <ModalTitle TextColor="TextColor.Danger">Error while saving</ModalTitle>
-        </ModalHeader>
-        <ModalFooter>
-            <Button Color="Color.Light" Clicked="@CloseFailureModal">Close</Button>
-        </ModalFooter>
-    </ModalContent>
-</Modal>
-
-<div class='some-page-wrapper'>
-    <div class='row' style="justify-content:center">
-          <Blazorise.TextInput Placeholder="Enter name" @bind-Value="@newEntry.Name" style="width:50%" />
-    </div>
-
-    <div class='row'>
-        <div>
-        
-                <div style="visibility: @(_timerVisible ? "visible" : "hidden"); font-size: 75px;">@FormatTimeSpan(@_displayTime) </div>  
-            @{
-                var showStartVisibility = _timerOperation.CanBeStarted ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
-                var showResumeOperation = _timerOperation.IsPaused ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
-                var showStopVisibility = _timerOperation.IsRecurring ? Blazorise.Visibility.Visible : Blazorise.Visibility.Invisible;
-                var showResetVisiblility = _timerOperation.IsRecurring ? Blazorise.Visibility.Invisible : Blazorise.Visibility.Visible; 
-
-
-            }
- 
-            <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px; position:fixed; right:10% " Visibility=@showStartVisibility @onclick="StartTimer">Start</Blazorise.Button>
-            <Blazorise.Button Color="Color.Success" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility="@showResumeOperation" @onclick="ResumeTimer">Resume</Blazorise.Button>
-            <Blazorise.Button Color="Color.Secondary"accesskey" Style="border-radius:50%; width: 100px; height:100px;position:fixed;right:10% " Visibility=@showStopVisibility @onclick="StopTimer">Stop</Blazorise.Button>
-
-            <div class="column">
-            <Blazorise.Button Color="Color.Secondary" Style="border-radius:50%; width: 100px; height:100px; " Visibility=@showResetVisiblility @onclick="ResetTimer">Reset</Blazorise.Button>
-            </div>
+        </div>
+        <div class="item" >
+            <Button Color="Color.Primary" Clicked="@SaveNewEntry">Save</Button>
+      
+            <Button Color="Color.Secondary" Clicked="@SaveNewEntry">Cancel</Button>
         </div>
     </div>
-
-</div>
-<div  style="margin-top:10%">
-    @{
-        var disableButton = (newEntry.Name == string.Empty || newEntry.Duration == TimeSpan.Zero);
-    }
-    <Blazorise.Button Disabled=@disableButton  Color="Color.Primary"  Block Clicked="ShowModal">Save</Blazorise.Button>
-
 </div>
 
+<DataGrid TItem="DurationEntry"
+          Data="@items"
+          @ref="grid"
+          @bind-SelectedRow="@selectedEntry"
+          Editable = "true"
+          Responsive
+          ShowPager
+          CommandMode="DataGridCommandMode.ButtonRow"
+          EditMode="DataGridEditMode.Inline">
+    <DataGridColumns>
+        <DataGridCommandColumn NewCommandAllowed="true" EditCommandAllowed="true" DeleteCommandAllowed="false" CancelCommandAllowed>
+            <NewCommandTemplate>
+                <Button Color="Color.Success" Clicked="@NewEntry">
+                    New
+                </Button>
+            </NewCommandTemplate>
+            <SaveCommandTemplate>
+                <Button ElementId="btnSave" Type="ButtonType.Submit" PreventDefaultOnSubmit Color="Color.Primary" Clicked="@SaveSelected">@context.LocalizationString</Button>
+            </SaveCommandTemplate>
+            <CancelCommandTemplate>
+                <Button ElementId="btnCancel" Color="Color.Secondary" Clicked="@context.Clicked">@context.LocalizationString</Button>
+            </CancelCommandTemplate>
+        </DataGridCommandColumn>
+        <DataGridColumn Field="@nameof(DurationEntry.Name)" Caption="Name" Editable >
+            <EditTemplate>
+                @{
+                    var currentName = context.Item.Name;
+                }
+                <TextInput Placeholder="Enter name" Value="@currentName" ValueChanged="@(value=> UpdateName(value))" />
+            </EditTemplate>
+            </DataGridColumn>
+
+        <DataGridColumn TItem="DurationEntry" Field = "@nameof(DurationEntry.Duration)" Caption="Duration" Editable >
+            <DisplayTemplate>
+                @FormatTimeSpan(context.Item.Duration)
+        </DisplayTemplate>
+     <EditTemplate>
+                @{
+                    var currentDuration = context.Item.Duration;
+                }
+                <DurationPicker Value="@currentDuration" ValueChanged="@UpdateTimeSpan" />
+</EditTemplate>
+
+</DataGridColumn>
 
 
+    </DataGridColumns>
+
+    <ButtonRowTemplate>
+        <Button Color="Color.Primary" Disabled="( selectedEntry is null )" Clicked="context.EditCommand.Clicked">Edit</Button>
+        <Button Color="Color.Danger" Disabled="(selectedEntry is null)" Clicked="() => AskDelete()">Delete</Button>
+    </ButtonRowTemplate>
+</DataGrid>
+
+<button class="sw-btn sw-save" @onclick="ShowSortedResults">
+    Show Results 🐾
+</button>
+@if (ShowResults)
+{
+    int i = 1;
+    <div>
+     <div class="card-dog" style="width:auto">
+            <div> MIN: @minEntry.Name, @minEntry.Duration.ToString(@"mm\:ss\:fff")</div>
+            <div> MAX: @maxEntry.Name, @maxEntry.Duration.ToString(@"mm\:ss\:fff")</div>
+            <div>  AVERAGE: @average.ToString(@"mm\:ss\:fff")</div>
+        </div>
+    @foreach (var item in sorted)
+        {
+            <div class="card-dog" style="width:auto">
+                <div> @i - @item.Name: @item.Duration.ToString(@"mm\:ss\:fff")</div>
+            </div>
+            i++;
+        }
+    </div>
+}
 
 @code {
-    // reference to the modal component
+    private List<DurationEntry> items = new(){};
+    private DataGrid<DurationEntry> grid;
+    private string changedDurationString = "";
+    private DurationEntry selectedEntry;
+    private string showNewEntryField = "none";
 
-
-    private Modal modalRef;
-    private Modal modalRefSuccess;
-    private Modal modalRefFailure;
-
-    private bool cancelClose;
-
-    private Task ShowModal()
-    {
-        return modalRef.Show();
-    }
-
-    private Task CloseModal()
-    {
-        cancelClose = false;
-        return  modalRef.Hide();
-    }
-
-    private Task OnModalClosing(ModalClosingEventArgs e)
-    {
-        e.Cancel = cancelClose
-            || e.CloseReason != CloseReason.UserClosing;
-
-        return Task.CompletedTask;
-    }
-
-    private Task ShowSuccessModal()
-    {
-        return modalRefSuccess.Show();
-    }
-
-    private Task CloseSuccessModal()
-    {
-        cancelClose = false;
-        return modalRefSuccess.Hide();
-    }
-
-    private Task ShowFailureModal()
-    {
-        return modalRefFailure.Show();
-    }
-
-    private Task CloseFailureModal()
-    {
-        cancelClose = false;
-        return modalRefFailure.Hide();
-    }
-
-
-    RecurringOperation _timerOperation;
-    RecurringOperation _blinkerOperation;
-    TimeSpan _displayTime = default;
-    List<TimeSpan> _laptimes;
-    int _elapsedSeconds;
-    int _elapsedMiliseconds;
-    bool _timerVisible = true;
+    DurationEntry minEntry;
+    DurationEntry maxEntry;
+    TimeSpan average;
+    private bool ShowResults = false;
+    private List<DurationEntry> sorted = new();
 
     public DurationEntry newEntry = new DurationEntry();
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _timerOperation = new("timer");
-        _timerOperation.Operation = IncrementTimer;
-        _timerOperation.StatusChanged += TimerOperationStatusChanged;
-        _timerOperation.OperationFaulted += LogError;
-
-        _blinkerOperation = new("blinker");
-        _blinkerOperation.Operation = BlinkTimer;
-        _blinkerOperation.StatusChanged += BlinkerOperationStatusChanged;
+        items = await Db.GetAlltriesAsync();
+    }
 
 
+
+    private void UpdateName(string newName)
+    {
+        if (selectedEntry != null)
+        {
+            selectedEntry.Name = newName;
+        } 
+    }
+
+    public async Task UpdateTimeSpan(TimeSpan newValue)
+    {
+        if (selectedEntry != null)
+        {
+            selectedEntry.Duration = newValue;
+        } 
+
+    }
+
+    public void NewEntry()
+    {
+        newEntry = new DurationEntry();
+        showNewEntryField = "";
+    }
+
+    public async Task UpdateTimeSpanNewEntry(TimeSpan newValue)
+    {
+        if (newEntry != null)
+        {
+            newEntry.Duration = newValue;
+        }
     }
 
     private string FormatTimeSpan(object value)
@@ -171,122 +193,92 @@
 
         return string.Empty;
     }
-
-    void StartTimer()
+    private async Task SaveSelected()
     {
-        Recurop.StartRecurring(_timerOperation, TimeSpan.FromMilliseconds(50));
+        if (selectedEntry is null)
+            return;
+
+        if (selectedEntry.Id == 0)
+            Db.DurationEntries.Add(selectedEntry);
+        else
+            Db.DurationEntries.Update(selectedEntry);
+        await Db.SaveChangesAsync();
+
+        await grid.Cancel();
+        await grid.Reload();
     }
-
-    void StopTimer()
-    {
-        newEntry.Duration = _displayTime;
-        Recurop.PauseRecurring(_timerOperation);
-    }
-
-    void ResumeTimer()
-    {
-        Recurop.ResumeRecurring(_timerOperation);
-    }
-
-    void ResetTimer()
-    {
-        _displayTime = TimeSpan.Zero;
-
-
-        newEntry.Duration = _displayTime;
-        Recurop.CancelRecurring(_timerOperation);
-        NavigationManager.NavigateTo("/",true);
-    }
-
-    void IncrementTimer()
-    {
-        _elapsedMiliseconds = _elapsedMiliseconds+50;
-        _displayTime = TimeSpan.FromMilliseconds(_elapsedMiliseconds);;
-        InvokeAsync(() => this.StateHasChanged());
-
-    }
-
-    void BlinkTimer()
-    {
-        _timerVisible = !_timerVisible;
-        InvokeAsync(() => this.StateHasChanged());
-    }
-
-
-    void BlinkerOperationStatusChanged()
-    {
-        switch (_blinkerOperation.Status)
-        {
-            case RecurringOperationStatus.Idle:
-                break;
-            case RecurringOperationStatus.Paused:
-                break;
-            case RecurringOperationStatus.Executing:
-                break;
-            case RecurringOperationStatus.Cancelled:
-                _timerVisible = true;
-                break;
-            default:
-                break;
-        }
-    }
-
-    void TimerOperationStatusChanged()
-    {
-        switch (_timerOperation.Status)
-        {
-            case RecurringOperationStatus.Idle:
-                break;
-            case RecurringOperationStatus.Paused:
-                break;
-            case RecurringOperationStatus.Executing:
-                break;
-            case RecurringOperationStatus.Cancelled:
-                _displayTime = TimeSpan.Zero;
-          
-
-                break;
-            default:
-                break;
-        }
-    }
-
-    void LogError(Exception ex)
-    {
-        Console.WriteLine(ex.Message);
-    }
-
-    public void Dispose()
-    {
-        Recurop.CancelRecurring(_timerOperation);
-        Recurop.CancelRecurring(_blinkerOperation);
-    }
-
 
     private async Task SaveNewEntry()
     {
         if (newEntry is null)
             return;
 
-        if (newEntry.Id == 0){
+        if (newEntry.Id == 0)
             Db.DurationEntries.Add(newEntry);
-        }
         else
-        {
             Db.DurationEntries.Update(newEntry);
-        }
+        await Db.SaveChangesAsync();
 
-        int success= await Db.SaveChangesAsync();
-       await  modalRef.Hide();
+        await grid.Cancel();
+        await grid.Reload();
+        showNewEntryField = "none";
 
-        if(success > 0)
-        {
-            await modalRefSuccess.Show();
-
-        }
-        else
-        {
-            await modalRefFailure.Show();
-        }
+        items = await Db.GetAlltriesAsync();
     }
+
+
+    private async Task CancelNewEntry()
+    {
+        newEntry = new DurationEntry();
+
+
+    }
+
+    private Modal deleteModal;
+
+
+    private async Task AskDelete()
+    {
+        await deleteModal.Show();
+    }
+
+    private async Task CancelDelete()
+    {
+        selectedEntry = null;
+        await deleteModal.Hide();
+    }
+
+    private async Task ShowSortedResults()
+    {
+        //1. get min and max values from db
+        minEntry = items.OrderBy(x => x.Duration).First();
+        maxEntry = items.OrderBy(x => x.Duration).Last();
+        average = new TimeSpan((minEntry.Duration.Ticks + maxEntry.Duration.Ticks) / 2);
+        sorted = items
+            .OrderBy(r => Math.Abs((r.Duration - average).Ticks))
+            .ToList();
+
+        ShowResults = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (selectedEntry is null)
+            return;
+
+        // Remove from EF Core
+        Db.Remove(selectedEntry);
+        await Db.SaveChangesAsync();
+
+        // Remove from UI list
+        items.Remove(selectedEntry);
+
+        // Refresh DataGrid
+        await grid.Reload();
+
+        selectedEntry = null;
+        await deleteModal.Hide();
+    }
+
+
 }
